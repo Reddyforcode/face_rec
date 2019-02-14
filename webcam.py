@@ -1,6 +1,6 @@
 import face_recognition
 import cv2
-
+import tkinterEx as tkk
 # input de la camarad
 video_capture = cv2.VideoCapture(0)
 
@@ -38,13 +38,14 @@ face_numbers = 0
 #cantidad de rostros en una imagen
 def numberFaces(face_locations):
     return len(face_locations)
-    
+
 while True:
     ret, frame = video_capture.read()
 
     # un cuarto del tamaño original de la camara
-    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-
+    #small_frame = cv2.resize(frame, (0, 0), fx=0.50, fy=0.50)
+    small_frame = cv2.resize(frame, (0,0), fx=0.25, fy=0.25)    #1/4 de la resolucion just for testngt
+    #small_frame =frame
     rgb_small_frame = small_frame[:, :, ::-1] #bgr(opencv) a rgb(face_reognition)
 
     # Only process every other frame of video to save time
@@ -52,13 +53,13 @@ while True:
         # Find all the faces and face encodings in the current frame of video
         face_locations = face_recognition.face_locations(rgb_small_frame)
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-        
+
         #face_number guarda la cantidad de rostros
         face_numbers = numberFaces(face_locations)
-        
+
 
         face_names = []
-        #match 
+        #match
         for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
             name = "Unknown"
@@ -76,6 +77,15 @@ while True:
     # Display the results
     for (top, right, bottom, left), name in zip(face_locations, face_names):
         # Scale back up face locations since the frame we detected in was scaled to 1/4 size
+        """
+        #para la imagen comprimida a la mitad de su calidad
+        top *= 2
+        right *= 2
+        bottom *= 2
+        left *= 2
+
+        """
+
         top *= 4
         right *= 4
         bottom *= 4

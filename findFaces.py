@@ -1,5 +1,10 @@
 import face_recognition
 from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+
+fig = plt.figure()
+
 image = face_recognition.load_image_file("perdonas_22.jpg")
 face_locations = face_recognition.face_locations(image)
 
@@ -12,21 +17,24 @@ for face_location in face_locations:
     #print("bla {}bla{} lba{} right{}", format(top, left, bottom, right))
     face_image = image[top:bottom, left:right]
     pil_image = Image.fromarray(face_image)
-    pil_image.save("face-{}.jpg".format(i))
+    pil_image.save("face-{}.png".format(i))
     i = i+1
 
-my_list = []
-my_list.append(i)
+
+my_list = []    #almacena las imagenes leidas por face:recognition
 for j in range (0, i):
-    my_list.append("face-{}.jpg".format(j))
+    my_list.append(face_recognition.load_image_file("face-{}.png".format(j)))
+
+#print(my_list)
 #lista de imagenes #inputs
+plt.imshow(my_list.pop())
 
 
-
+plt.show()
 
 
 """
-#si la imagen uno esta dentro de la imagen 
+#si la imagen uno esta dentro de la imagen
 def facesInAPic(image):
     face_locations = face_recognition.face_locations(image)
     return len(face_locations)
