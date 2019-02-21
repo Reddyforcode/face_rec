@@ -5,7 +5,7 @@ import matplotlib.image as mpimg
 
 fig = plt.figure()
 
-image = face_recognition.load_image_file("perdonas_22.jpg")
+image = face_recognition.load_image_file("reddy.jpg")
 face_locations = face_recognition.face_locations(image)
 
 print(format(len(face_locations)))  #number of faces in the pic

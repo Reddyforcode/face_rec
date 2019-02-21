@@ -1,6 +1,12 @@
 import tkinter as tk
-import cv2
 from PIL import Image, ImageTk
+
+import __future__ import print_function
+import threading
+import datetime
+import imutils
+import cv2
+import os
 
 ventana =tk.Tk()
 ventana.geometry("300x744+0+0")

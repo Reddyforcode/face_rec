@@ -1,113 +1,126 @@
 import face_recognition
 import cv2
-import tkinterEx as tkk
-# input de la camarad
+import psycopg2
+from PIL import Image
+from time import time
+
+class Persona:
+    def __init__(self, img_source, nombre):
+        self.img_source =img_source
+        self.nombre = nombre
+    def getNombre(self):
+        return self.nombre
+    def getImgSrc(self):
+        return self.img_source
+
+def getKnowPersonsFromDB():
+    know_persons = []
+    try:
+        conn = psycopg2.connect("dbname=reconocimiento user=reddytintayaconde password=123456")
+        cur =conn.cursor()
+        sqlquery = "select nombre, img_src from know_users ORDER BY id;"
+        cur.execute(sqlquery)
+        row =cur.fetchone()
+        while row is not None:
+            print(row)
+            know_persons.append(Persona("knowFaces/"+row[1], row[0]))
+            print(know_persons[len(know_persons)-1].getNombre())    #print names
+            row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return know_persons
+    except:
+        print("DB error")
+
 video_capture = cv2.VideoCapture(0)
 
-# Load a sample picture and learn how to recognize it.
-obama_image = face_recognition.load_image_file("obama.jpg")
-obama_face_encoding = face_recognition.face_encodings(obama_image)[0]
+print("leyendo base de datos")
+know_persons = getKnowPersonsFromDB()
 
-ted_image = face_recognition.load_image_file("ted.jpg")
-ted_face_encoding = face_recognition.face_encodings(ted_image)[0]
+faces_encoding = []
+face_names = []
 
-# Load a second sample picture and learn how to recognize it.
-biden_image = face_recognition.load_image_file("reddy.jpg")
-biden_face_encoding = face_recognition.face_encodings(biden_image)[0]
+def getEncodingFaces(know_persons):
+    print(len(know_persons))
+    global faces_encoding
+    global face_names
+    print("el tamaño de know persons es : ", len(know_persons))
+    i = 1
+    for imag in know_persons:
+        if(len(know_persons) > 3 ):
+            break
+        print("para " , " la imagen es: ", imag.getImgSrc())
+        image = face_recognition.load_image_file(imag.getImgSrc())
+        faces_encoding.append(face_recognition.face_encodings(image)[0])
+        face_names.append(imag.getNombre())
+        i = i + 1
+    return faces_encoding, face_names
 
-# Create arrays of known face encodings and their names
-known_face_encodings = [
-    obama_face_encoding,
-    biden_face_encoding,
-    ted_face_encoding
-]
-known_face_names = [
-    "Barack Obama",
-    "Reddy",
-    "Ted"
-]
-
-# Initialize some variables
+known_face_encodings, known_face_names = getEncodingFaces(know_persons)
 face_locations = []
 face_encodings = []
 face_names = []
 process_this_frame = True
-antNumberFaces = 0
-face_numbers = 0
 
-#cantidad de rostros en una imagen
-def numberFaces(face_locations):
-    return len(face_locations)
-
+i = 0
 while True:
+
+    start_time = time()
+    print(i)
+    i = i+1
     ret, frame = video_capture.read()
-
-    # un cuarto del tamaño original de la camara
-    #small_frame = cv2.resize(frame, (0, 0), fx=0.50, fy=0.50)
-    small_frame = cv2.resize(frame, (0,0), fx=0.25, fy=0.25)    #1/4 de la resolucion just for testngt
-    #small_frame =frame
-    rgb_small_frame = small_frame[:, :, ::-1] #bgr(opencv) a rgb(face_reognition)
-
-    # Only process every other frame of video to save time
+    small_frame = cv2.resize(frame, (0, 0), fx=0.1, fy=0.10)
+    #small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)    #mitad de la calidad
+    rgb_small_frame = small_frame[:, :, ::-1]
     if process_this_frame:
-        # Find all the faces and face encodings in the current frame of video
-        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_locations = face_recognition.face_locations(rgb_small_frame)#, model ="cnn")
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-
-        #face_number guarda la cantidad de rostros
-        face_numbers = numberFaces(face_locations)
-
-
         face_names = []
-        #match
-        for face_encoding in face_encodings:
+        """for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
             name = "Unknown"
-
-            # If a match was found in known_face_encodings, just use the first one.
             if True in matches:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
-
             face_names.append(name)
-
+            """
     process_this_frame = not process_this_frame
 
 
-    # Display the results
+    tratar =False
     for (top, right, bottom, left), name in zip(face_locations, face_names):
-        # Scale back up face locations since the frame we detected in was scaled to 1/4 size
+        top *= 10
+        right *= 10
+        bottom *= 10
+        left *= 10
         """
-        #para la imagen comprimida a la mitad de su calidad
+        #mitad de la calidad
         top *= 2
         right *= 2
         bottom *= 2
         left *= 2
-
         """
-
-        top *= 4
-        right *= 4
-        bottom *= 4
-        left *= 4
-
-        # Draw a box around the face
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-
-        # Draw a label with a name below the face
-        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-        font = cv2.FONT_HERSHEY_DUPLEX
-        cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
-
-
-    #if (face_numbers != antNumberFaces):
-    font = cv2.FONT_HERSHEY_DUPLEX
-    cv2.putText(frame, str(face_numbers), (20, 40), font, 1.0, (255, 0, 255), 1)
-    antNumberFaces = face_numbers
+        cv2.rectangle(frame, (left, top), (right, bottom), (123, 123, 123), 2)  #face bordes
+        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (123, 123, 123), cv2.FILLED) #space for name
+        cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 0), 1)
+        """
+        #agregado fallido **GPU**
+        if(name == "Unknown"):
+            face_image =frame[top:bottom, left:right]
+            pil_image = Image.fromarray(face_image)
+            pil_image.save("face-{}.png".format(i))
+            know_persons.append(Persona("face-{}.png".format(i), "face-{}".format(i)))
+            i = i + 1
+            tratar = True
+    if (tratar):
+        known_face_encodings, known_face_names = getEncodingFaces(know_persons)
+        tratar = False
+        """
     cv2.imshow('Video', frame)
-
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+    elapsed_time =time() - start_time
+    print("tiempo: ", elapsed_time)
 
 video_capture.release()
 cv2.destroyAllWindows()
