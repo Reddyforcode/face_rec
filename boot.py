@@ -55,14 +55,15 @@ class PhotoBoothApp:
 
         self.root = tki.Tk()
         self.panel = None
-        btn = tki.Button(self.root, text="Ok", command=self.takeSnapshot)
-        btn.pack(side="bottom", fill="both", expand="yes", padx=10, pady=10)
+        btn = tki.Button(self.root, text="Ok", command=self.takeSnapshot).grid(column=0, row = 3)
+        btnContinue = tki.Button(self.root, text="Skip", command= self.skip).grid(column=1, row = 3)
         
-        self.txt = tki.Entry(self.root, text="Name")
-        self.txt.pack(side="bottom", fill="both", expand="yes", padx=10, pady=10)
+        self.txt = tki.Entry(self.root)
+        self.txt.grid(column=1, row= 1)
+        #self.txt.pack(side="bottom", fill="both", expand="yes", padx=10, pady=10)
 
-        lbl = tki.Label(self.root, text= "Ingrese el Nombre")
-        lbl.pack(side="bottom", fill="both", expand="yes", padx=10, pady=10)
+        lbl = tki.Label(self.root, text= "Ingrese el Nombre").grid(column=0, row= 1)
+        #lbl.pack(side="bottom", fill="both", expand="yes", padx=10, pady=10)
         
         self.stopEvent = threading.Event()
         self.thread = threading.Thread(target=self.videoLoop, args=())
@@ -83,13 +84,19 @@ class PhotoBoothApp:
                 if self.panel is None:
                     self.panel = tki.Label(image=image)
                     self.panel.image = image
-                    self.panel.pack(side="left", padx=10, pady=10)
+                    self.panel.grid(row = 0, columnspan= 2)
                 else:
                     self.panel.configure(image=image)
                     self.panel.image = image
         except RuntimeError:
             print("[INFO] caught a RuntimeError")
 
+    def skip(self):
+        rec= Recognition()
+        self.stopEvent.set()
+        self.vs.stop()
+        self.root.quit()
+        self.onClose()
     def takeSnapshot(self):
         ts = datetime.datetime.now()
         filename = "{}.png".format(self.txt.get())
