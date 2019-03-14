@@ -75,7 +75,7 @@ class PhotoBoothApp:
         try:
             while not self.stopEvent.is_set():
                 self.frame = self.vs.read()
-                self.frame = imutils.resize(self.frame, width=300)
+                self.frame = imutils.resize(self.frame, width=600)
                 image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
                 image = cv2.flip(image, 1)
                 image = Image.fromarray(image)

@@ -70,8 +70,8 @@ class Recognition():
             print(i)
             i = i+1
             ret, frame = self.video_capture.read()
-            small_frame = cv2.resize(frame, (0, 0), fx=0.10, fy=0.10)
-            #small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)    #mitad de la calidad
+            #small_frame = cv2.resize(frame, (0, 0), fx=0.10, fy=0.10)
+            small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)    #mitad de la calidad
             rgb_small_frame = small_frame[:, :, ::-1]
             if self.process_this_frame:
                 self.face_locations = face_recognition.face_locations(rgb_small_frame)#, model ="cnn")
@@ -90,7 +90,7 @@ class Recognition():
 
             tratar =False
             for (top, right, bottom, left), name in zip(self.face_locations, self.face_names):
-                top *= 10
+                """top *= 10
                 right *= 10
                 bottom *= 10
                 left *= 10
@@ -100,7 +100,7 @@ class Recognition():
                 right *= 2
                 bottom *= 2
                 left *= 2
-                """
+                
                 cv2.rectangle(frame, (left, top), (right, bottom), (123, 123, 123), 2)  #face bordes
                 cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (123, 123, 123), cv2.FILLED) #space for name
                 cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 0), 1)
