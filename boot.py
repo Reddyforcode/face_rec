@@ -24,7 +24,9 @@ class PhotoBoothApp:
     def conndb(self, ci, nombre, img_src):
         print("trying to: cosadcasdfasdasd")
         try:
-            conn = psycopg2.connect("dbname=reconocimiento user=reddytintayaconde password=123456")  
+            # conn = psycopg2.connect("dbname=reconocimiento user=reddytintayaconde password=123456")  #it work s in the mac
+            conn = psycopg2.connect("dbname=reconocimieto user=reddytintayaconde host=localhost password=123456 port=5432") 
+
         except:
             print("error al ingresar algo nuevo dude")
         cur = conn.cursor()
