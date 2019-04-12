@@ -2,13 +2,19 @@ import face_recognition
 from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from time import time
 
-fig = plt.figure()
+import dlib
+import dlib.cuda as cuda
+print(cuda.get_num_devices())
+dlib.DLIB_USE_CUDA=1
+dlib.USE_AVX_INSTRUCTIONS=1
+image = face_recognition.load_image_file("baseDatos.jpeg")
 
-image = face_recognition.load_image_file("reddy.jpg")
-face_locations = face_recognition.face_locations(image)
-
-print(format(len(face_locations)))  #number of faces in the pic
+start = time()
+face_locations = face_recognition.face_locations(image, model="cnn")
+print("tiempo: ", time()-start)
+print(format(len(face_locations)))  
 
 i = 0
 
@@ -17,13 +23,13 @@ for face_location in face_locations:
     #print("bla {}bla{} lba{} right{}", format(top, left, bottom, right))
     face_image = image[top:bottom, left:right]
     pil_image = Image.fromarray(face_image)
-    pil_image.save("face-{}.png".format(i))
+    pil_image.save("out/face-{}.png".format(i))
     i = i+1
 
-
+"""
 my_list = []    #almacena las imagenes leidas por face:recognition
 for j in range (0, i):
-    my_list.append(face_recognition.load_image_file("face-{}.png".format(j)))
+    my_list.append(face_recognition.load_image_file("out/face-{}.png".format(j)))
 
 #print(my_list)
 #lista de imagenes #inputs
@@ -31,7 +37,7 @@ plt.imshow(my_list.pop())
 
 
 plt.show()
-
+"""
 
 """
 #si la imagen uno esta dentro de la imagen
