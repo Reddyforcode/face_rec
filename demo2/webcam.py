@@ -6,6 +6,11 @@ from time import time
 from videocaptureasync import VideoCaptureAsync
 import numpy as np 
 from time import gmtime, strftime
+import dlib
+import face_recognition_models
+
+face_recognition_model = face_recognition_models.face_recognition_model_location()
+face_encoder = dlib.face_recognition_model_v1(face_recognition_model)
 
 class Persona:
     def __init__(self, img_source, nombre):
@@ -20,7 +25,6 @@ def getKnowPersonsFromDB():
     know_persons = []
     try:
         conn = psycopg2.connect("dbname=registros user=reddy password=123456 port=5432 host=localhost port=5432")
-        
     except:
         print("fallo conn")
     cur =conn.cursor()
@@ -28,10 +32,12 @@ def getKnowPersonsFromDB():
     cur.execute(sqlquery)
     row =cur.fetchone()
     while row is not None:
+        start=time()
         print(row)
         know_persons.append(Persona("knowFaces/"+row[1], row[0]))
         print(know_persons[len(know_persons)-1].getNombre())    #print names
         row = cur.fetchone()
+        print("consulta: ", time()-start)
     cur.close()
     conn.close()
     return know_persons
@@ -39,25 +45,43 @@ def getKnowPersonsFromDB():
 class Recognition():
 
     #parametros globales para la segunda ventana
-    def distance(self, accuracy):
+    def distance(self, accuracy, name):
         #pasar dos encodings procesa el nivel de accuracy de cada uno y devuelve un loading bar
         load = accuracy * 270
         color = (0, 0, 255)
-        image = np.zeros((30, 300, 3), np.uint8)
-        cv2.rectangle(image, (0, 0), (300, 50), (81, 88, 94), cv2.FILLED)
-        cv2.rectangle(image, (10, 15), (int(load)+15, 20), color, cv2.FILLED)
+        image = np.zeros((40, 300, 3), np.uint8)
+        cv2.rectangle(image, (0, 0), (300, 50), (255, 255, 255), cv2.FILLED)
+        cv2.putText(image, name, (10, 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (125, 125, 0), 1)
+        cv2.rectangle(image, (10, 20), (int(load)+15, 30), color, cv2.FILLED)
         return image
+
     def record_date_hour(self, name):
         #insert where name date
         date = strftime("%Y/%m/%d", gmtime())
         hour = strftime("%H:%M:%S", gmtime())
+        try:
+            connection = psycopg2.connect("dbname=registros user=reddy password=123456 port=5432 host=localhost port=5432")
+        except:
+            print("conexion exito")
+        cursor = connection.cursor()
+        postgres_insert_query = """ INSERT INTO deteccion (name, fecha, hora) VALUES (%s, %s, %s)"""
+        
+        fecha = "'"+date+"'"
+        hora = "'"+ hour +"'"
+        record_to_insert = (name, fecha, hora)
+        cursor.execute(postgres_insert_query, record_to_insert)
+        connection.commit()
+        cursor.close()
+        connection.close()
+
 
     def dahua(self, name, actual_img, accuracy):
         path = "knowFaces/" + name.lower() + ".png"
         db_img = cv2.imread(path)
         db_img = cv2.resize(db_img, (150, 150), interpolation=cv2.INTER_CUBIC)
         un_img = np.concatenate((db_img, actual_img), axis = 1)
-        un_img = np.concatenate((un_img, self.distance(accuracy)), axis = 0)
+        un_img = np.concatenate((un_img, self.distance(accuracy, name)), axis = 0)
+        self.record_date_hour(name)
         if(self.first):
             self.first = False
             cv2.imshow("Board", un_img)
@@ -65,13 +89,27 @@ class Recognition():
             final = np.concatenate((un_img, self.pastUnion), axis = 0)
             cv2.imshow("Board", final)
         self.pastUnion = un_img
+
         return
+    def face_enc(self, face_image, known_face_locations=None, num_jitters=1):
+        """
+        Given an image, return the 128-dimension face encoding for each face in the image.
+        :param face_image: The image that contains one or more faces
+        :param known_face_locations: Optional - the bounding boxes of each face if you already know them.
+        :param num_jitters: How many times to re-sample the face when calculating encoding. Higher is more accurate, but slower (i.e. 100 is 100x slower)
+        :return: A list of 128-dimensional face encodings (one for each face in the image)
+        """
+        raw_landmarks = face_recognition.api._raw_face_landmarks(face_image, known_face_locations)
+        return [np.array(face_encoder.compute_face_descriptor(face_image, raw_landmark_set, num_jitters)) for raw_landmark_set in raw_landmarks]
+
 
     def getEncodingFaces(self, know_persons):
         i = 1
         for imag in know_persons:
             image = face_recognition.load_image_file(imag.getImgSrc())
-            self.faces_encoding.append(face_recognition.face_encodings(image)[0])
+            #self.faces_encoding.append(face_recognition.face_encodings(image, num_jitters=100)[0])
+            self.faces_encoding.append(self.face_enc(image, num_jitters=100)[0])
+
             self.face_names.append(imag.getNombre())
             i = i + 1
         return self.faces_encoding, self.face_names
@@ -82,10 +120,19 @@ class Recognition():
         self.path = "knowFaces/reddy.png"
         self.db_img = cv2.imread(self.path)
         self.db_img = cv2.resize(self.db_img, (150, 150), interpolation=cv2.INTER_CUBIC)
+        
+
         self.cap = VideoCaptureAsync()
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         self.cap.start()
+        
+        frame_width = 1280
+        frame_height = 720
+
+        # Define the codec and create VideoWriter object.The output is stored in 'outpy.avi' file.
+        self.out = cv2.VideoWriter('outpy.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (1280, 720))
+
         self.face_record1 = "nadies"
         self.nombres = {}
         self.first = True
@@ -102,16 +149,17 @@ class Recognition():
 
         while True:
             ret, frame = self.cap.read()
-            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)    #mitad de la calidad
+            small_frame = cv2.resize(frame, (0, 0), fx=1, fy=1)
+            #mitad de la calidad
             rgb_small_frame = small_frame[:, :, ::-1]
             if self.process_this_frame:
-                self.face_locations = face_recognition.face_locations(rgb_small_frame)#, model ="cnn")
-                self.face_encodings = face_recognition.face_encodings(rgb_small_frame, self.face_locations)
+                self.face_locations = face_recognition.face_locations(rgb_small_frame, model="cnn")#, model ="cnn")
+                self.face_encodings = self.face_enc(rgb_small_frame, self.face_locations,  num_jitters=100)
                 self.face_names = []
                 self.face_values = []
 
                 for face_encoding in self.face_encodings:
-                    self.matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding)
+                    self.matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding, tolerance= 0.30)
                     self.name = "Unknown"
                     self.values = np.linalg.norm(self.known_face_encodings-face_encoding, axis = 1)
 
@@ -126,15 +174,55 @@ class Recognition():
 
             tratar =False
             for (top, right, bottom, left), name, acc in zip(self.face_locations, self.face_names, self.face_values):
-                top *= 4
-                right *= 4
-                bottom *= 4
-                left *= 4
-                
+                """top *= 2
+                right *= 2
+                bottom *= 2
+                left *= 2"""
+                collight = (123, 123, 123)
                 actual_img = cv2.resize(frame[top:bottom, left:right], (150, 150), interpolation=cv2.INTER_CUBIC)    #gui
-                cv2.rectangle(frame, (left, top), (right, bottom), (123, 123, 123), 2)  #face bordes
-                cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (123, 123, 123), cv2.FILLED) #space for name
-                cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 0), 1)
+                cv2.rectangle(frame, (left, top), (right, bottom), collight, 1)  #face bordes
+                ##calcular el tamaño entre top y left 
+                vertical = bottom-top
+                horizontal = right - left
+                #draw contorns
+                r = right
+                l = left
+
+                t = top
+                b = bottom
+                
+                alpha = vertical / 4
+                alpha = int(alpha)
+                betha = 2 * alpha
+                if(name == "Unknown"):
+                    col = (255, 255, 255)
+
+                else:
+                    col = (241, 175, 14)
+                cv2.line(frame, (l, t), (l, t+alpha), col, 2)
+                cv2.line(frame, (l, t), (l+alpha, t), col, 2)
+
+                cv2.line(frame, (r, t), (r-alpha, t), col, 2)
+                cv2.line(frame, (r, t), (r, t+alpha), col, 2)
+
+                cv2.line(frame, (l, b), (l+alpha, b), col, 2)
+                cv2.line(frame, (l, b), (l, b-alpha), col, 2)
+
+                cv2.line(frame, (r, b), (r-alpha, b), col, 2)
+                cv2.line(frame, (r, b), (r, b-alpha), col, 2)
+                
+                alpha = 10
+                cv2.line(frame, (l-alpha, t+betha), (l+alpha, t+betha), collight, 1)
+                cv2.line(frame, (r-alpha, t+betha), (r+alpha, t+betha), collight, 1)
+                cv2.line(frame, (l+betha, t-alpha), (l+betha, t+alpha), collight, 1)
+                cv2.line(frame, (l+betha, b-alpha), (l+betha, b +alpha), collight, 1)
+                
+                #print("vertical: ", vertical)
+                #print("horizontal: ", horizontal)
+                
+
+                #cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (123, 123, 123), cv2.FILLED) #space for name
+                cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.70, (255, 255, 0), 1)
                 print("nombres: ", self.nombres)
 
                 try:
@@ -152,12 +240,15 @@ class Recognition():
                         self.dahua(self.name, actual_img, acc)#causa 50fps con 0.02 y el mas bajo 0.001
                         self.face_record1 = name
                     self.nombres[self.name] = 1
-                
+            #self.out.write(frame)
             cv2.imshow('Video', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
+       
         self.cap.stop()
+        print(self.out.release())
+        #out.release()
         cv2.destroyAllWindows()
 
 rec = Recognition()
