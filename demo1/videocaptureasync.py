@@ -3,8 +3,8 @@ import threading
 import cv2
 import copy
 class VideoCaptureAsync:
-    def __init__(self, width=2688, height=1520):
-        self.src = "rtsp://admin:DocoutBolivia@192.168.1.64:554/Streaming/Channels/102/"
+    def __init__(self, width=2688, height=1520, src = "rtsp://admin:DocoutBolivia@192.168.1.64:554/Streaming/Channels/102/" ):
+        self.src = 0
         self.cap = cv2.VideoCapture(self.src)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
